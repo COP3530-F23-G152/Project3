@@ -1,0 +1,5 @@
+*.shp
+*.shx
+*.parquet
+.ipynb_checkpoints
+.cache
