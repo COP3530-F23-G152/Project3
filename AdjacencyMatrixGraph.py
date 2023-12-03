@@ -1,5 +1,3 @@
-import pandas as pd
-
 class AdjacencyMatrixGraph:
     def __init__(self, size):
         self.adjacency_list = []
