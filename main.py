@@ -1,11 +1,11 @@
 import pandas as pd
 import geopandas as gpd
-import time
 from pandas.io.formats.format import math
 import pygame
 from shapely.geometry import MultiPolygon, Polygon, Point
 from tqdm import tqdm
 from AdjacencyMatrixGraph import AdjacencyMatrixGraph
+from AdjacencyListGraph import AdjacencyListGraph
 
 BACKGROUND_COLOR = (100, 100, 100)
 
@@ -59,7 +59,7 @@ def load_adjacency_matrix_graph(zone_lookup, trip_data):
 
 def load_adjacency_list_graph(zone_lookup, trip_data):
     # add one because the ids are 1 indexed
-    graph = AdjacencyMatrixGraph(len(zone_lookup)+1)
+    graph = AdjacencyListGraph(len(zone_lookup)+1)
 
     for i in tqdm(range(len(trip_data))):
         graph.add_edge(trip_data['PULocationID'][i], trip_data['DOLocationID'][i])
@@ -95,9 +95,9 @@ def main():
     yellow_taxi_df = pd.read_parquet('yellow_tripdata_2023-01.parquet', engine='fastparquet')
     print("done!")
 
-    print("Loading adjacency matrix graph...")
-    matrix_graph = load_adjacency_matrix_graph(zone_lookup_df, yellow_taxi_df)
-    print("done!")
+    # print("Loading adjacency matrix graph...")
+    # matrix_graph = load_adjacency_matrix_graph(zone_lookup_df, yellow_taxi_df)
+    # print("done!")
     
     print("Loading adjacency list graph...")
     list_graph = load_adjacency_list_graph(zone_lookup_df, yellow_taxi_df)
