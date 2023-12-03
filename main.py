@@ -7,6 +7,8 @@ from shapely.geometry import MultiPolygon, Polygon, Point
 from tqdm import tqdm
 from AdjacencyMatrixGraph import AdjacencyMatrixGraph
 
+BACKGROUND_COLOR = (100, 100, 100)
+
 def color_blend(weight, c1, c2):
     c1w = weight
     c2w = 1 - weight
@@ -107,10 +109,8 @@ def main():
     pygame.display.set_caption("An Interactive Map of")
     # Clear the screen
 
-    screen.fill((0, 0, 0))
-
-    min_color = (0, 255, 0)                        
-    max_color = (255, 0, 0)
+    min_color = (0, 0, 125)                        
+    max_color = (255, 0, 125)
                                          
     # Main game loop
     selected = None
@@ -135,7 +135,7 @@ def main():
                     if zone_geometry.contains(mouse_pos):
                         hovered = idx
 
-        screen.fill((0, 0, 0))
+        screen.fill(BACKGROUND_COLOR)
 
         if selected:
             # Add one here to stop divide by zero errors
@@ -151,12 +151,12 @@ def main():
                 weight = math.pow(list_graph.count_edges(idx, selected) / max_degree, 0.25)
                 color = color_blend(weight, max_color, min_color) 
 
-            draw_zone_geometry(screen, geometry, color, (0, 0, 0))
+            draw_zone_geometry(screen, geometry, color, BACKGROUND_COLOR)
 
-        if selected:
-            draw_zone_geometry(screen, zone_geometries[selected], (255, 255, 255), (0, 0, 0))
         if hovered:
             draw_zone_geometry(screen, zone_geometries[hovered], min_color, (255, 255, 255))
+        if selected:
+            draw_zone_geometry(screen, zone_geometries[selected], (255, 255, 255), (0, 0, 0))
 
         # Update the display
         pygame.display.flip()
