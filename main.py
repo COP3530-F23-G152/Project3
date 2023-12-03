@@ -1,10 +1,16 @@
 import pandas as pd
 import geopandas as gpd
 import time
+from pandas.io.formats.format import math
 import pygame
 from shapely.geometry import MultiPolygon, Polygon, Point
 from tqdm import tqdm
-from AdjacencyListGraph import AdjacencyListGraph
+from AdjacencyMatrixGraph import AdjacencyMatrixGraph
+
+def color_blend(weight, c1, c2):
+    c1w = weight
+    c2w = 1 - weight
+    return (c1[0]*c1w + c2[0]*c2w, c1[1]*c1w + c2[1]*c2w, c1[2]*c1w + c2[2]*c2w)
 
 def scale_and_shift_geometry(geometry, scale_factor, shift_x, shift_y):
     if geometry.geom_type == 'Polygon':
@@ -28,98 +34,131 @@ def scale_and_shift_polygon(polygon, scale_factor, shift_x, shift_y):
     # Return the scaled and shifted polygon
     return Polygon(scaled_and_shifted_coords)
 
-def draw_scaled_and_shifted_geometry(screen, geometry, color):
+def draw_zone_geometry(screen, geometry, fill_color, border_color):
     if geometry.geom_type == 'Polygon':
-        draw_scaled_and_shifted_polygon(screen, geometry, color)
+        draw_zone_polygon(screen, geometry, fill_color, border_color)
     elif geometry.geom_type == 'MultiPolygon':
         for polygon in geometry.geoms:
-            draw_scaled_and_shifted_polygon(screen, polygon, color)
-            
+            draw_zone_polygon(screen, polygon, fill_color, border_color) 
 
-def draw_scaled_and_shifted_polygon(screen, polygon, color):
-    exterior_coords = [(int(x), int(y)) for x, y in polygon.exterior.coords]
-    pygame.draw.polygon(screen, color, exterior_coords)
-    pygame.draw.polygon(screen, (0, 0, 0), exterior_coords, 1)
+def draw_zone_polygon(screen, polygon, fill_color, border_color):
+    pygame.draw.polygon(screen, fill_color, polygon.exterior.coords)
+    pygame.draw.polygon(screen, border_color, polygon.exterior.coords, 1)
 
 
-def load_adjacency_list_graph(zone_lookup, trip_data):
-    graph = AdjacencyListGraph()
-
-    for vertex in zone_lookup:
-        graph.add_vertex(vertex)
+def load_adjacency_matrix_graph(zone_lookup, trip_data):
+    # add one because the ids are 1 indexed
+    graph = AdjacencyMatrixGraph(len(zone_lookup)+1)
 
     for i in tqdm(range(len(trip_data))):
-        graph.add_edge(trip_data['DOLocationID'][i], trip_data['PULocationID'][i], 1)
+        graph.add_edge(trip_data['PULocationID'][i], trip_data['DOLocationID'][i])
 
     return graph
+
+def load_adjacency_list_graph(zone_lookup, trip_data):
+    # add one because the ids are 1 indexed
+    graph = AdjacencyMatrixGraph(len(zone_lookup)+1)
+
+    for i in tqdm(range(len(trip_data))):
+        graph.add_edge(trip_data['PULocationID'][i], trip_data['DOLocationID'][i])
+
+    return graph
+
+
+def create_polygons(gdf, sw, sh):
+    polygons = []
+
+    minx, miny, maxx, maxy = gdf.total_bounds
+    x_scale = sw / (maxx-minx)
+    y_scale = -sh / (maxy-miny)
+    x_off = minx*x_scale
+    y_off = maxy*y_scale
+    trans_matrix = [x_scale, 0, 0, y_scale, -x_off, -y_off]
+    gdf = gdf.affine_transform(trans_matrix)
+
+    polygons.extend(gdf)
+    return polygons
 
 def main():
     print("Loading taxi zones...", end=' ', flush=True)
     gdf = gpd.read_file('taxi_zones.shp')
     zone_lookup_df = pd.read_csv("taxi+_zone_lookup.csv")
     print("done!")
+ 
+    print("Creating polygons...", end=' ', flush=True)
+    zone_geometries = create_polygons(gdf, 1000, 1000)
+    print("done!")
     
     print("Loading trip data...", end=' ', flush=True)
     yellow_taxi_df = pd.read_parquet('yellow_tripdata_2023-01.parquet', engine='fastparquet')
     print("done!")
 
-    print("Loading adjacency list graph...")
-    my_graph = load_adjacency_list_graph(zone_lookup_df, yellow_taxi_df)
+    print("Loading adjacency matrix graph...")
+    matrix_graph = load_adjacency_matrix_graph(zone_lookup_df, yellow_taxi_df)
     print("done!")
     
-   
+    print("Loading adjacency list graph...")
+    list_graph = load_adjacency_list_graph(zone_lookup_df, yellow_taxi_df)
+    print("done!")
+  
     # Create a pygame window
     pygame.init()
     screen = pygame.display.set_mode((1200, 1000))
     pygame.display.set_caption("An Interactive Map of")
-
-    # Define the scale factor and shift values (adjust as needed)
-    scale_factor = 0.006
-    shift_x = -900000 * scale_factor
-    shift_y = 127500 * scale_factor
     # Clear the screen
+
     screen.fill((0, 0, 0))
 
-
-    # Draw all geometries in the GeoDataFrame
-    def drawpolygons(color):
-        for geometry in gdf['geometry']:
-            scaled_and_shifted_geometry = scale_and_shift_geometry(geometry, scale_factor, shift_x, shift_y)
-            draw_scaled_and_shifted_geometry(screen, scaled_and_shifted_geometry, color)
-
-    base_color = (0,185,140)                        
-    drawpolygons(base_color)          
+    min_color = (0, 255, 0)                        
+    max_color = (255, 0, 0)
                                          
     # Main game loop
-    running = True
-    while running:
+    selected = None
+    hovered = None
+    while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                pygame.quit()
+                exit()
+            
             if event.type == pygame.MOUSEBUTTONUP:
-                screen.fill((0, 0, 0))
-                drawpolygons(base_color) 
-                i = 0
-                for geometry in gdf['geometry']:
-                    i += 1
-                    scaled_and_shifted_polygon = scale_and_shift_geometry(geometry, scale_factor, shift_x, shift_y)
-                    if (scaled_and_shifted_polygon.contains(Point(pygame.mouse.get_pos()))):
-                        adjacency_df = my_graph.display_adjacency_list_for_vertex(i)
-                        for j in range(len(adjacency_df)):
-                            poly = gdf['geometry'].iloc[adjacency_df['Zone'].iloc[j]-1]
-                            scaled_and_shifted_polygon = scale_and_shift_geometry(poly, scale_factor, shift_x, shift_y)
-                            adjacent_color = (adjacency_df['Red_Value'].iloc[j],0,125) 
-                            draw_scaled_and_shifted_geometry(screen, scaled_and_shifted_polygon, adjacent_color)
-                        clicked_color = (255,255,255) 
-                        scaled_and_shifted_polygon = scale_and_shift_geometry(geometry, scale_factor, shift_x, shift_y)
-                        draw_scaled_and_shifted_geometry(screen, scaled_and_shifted_polygon, clicked_color)
-                        
+                selected = None
+                mouse_pos = Point(pygame.mouse.get_pos())
+                for idx, zone_geometry in enumerate(zone_geometries):
+                    if zone_geometry.contains(mouse_pos):
+                        selected = idx
+
+            if event.type == pygame.MOUSEMOTION:
+                hovered = None
+                mouse_pos = Point(pygame.mouse.get_pos())
+                for idx, zone_geometry in enumerate(zone_geometries):
+                    if zone_geometry.contains(mouse_pos):
+                        hovered = idx
+
+        screen.fill((0, 0, 0))
+
+        if selected:
+            max_degree = list_graph.max_in(selected)
+
+        for idx, geometry in enumerate(zone_geometries):
+            if idx == selected:
+                continue
+            if idx == hovered:
+                continue
+            color = min_color
+            if selected:
+                weight = math.pow(list_graph.count_edges(idx, selected) / max_degree, 0.25)
+                color = color_blend(weight, max_color, min_color) 
+
+            draw_zone_geometry(screen, geometry, color, (0, 0, 0))
+
+        if selected:
+            draw_zone_geometry(screen, zone_geometries[selected], (255, 255, 255), (0, 0, 0))
+        if hovered:
+            draw_zone_geometry(screen, zone_geometries[hovered], min_color, (255, 255, 255))
 
         # Update the display
         pygame.display.flip()
-
-    # Quit pygame
-    pygame.quit()
 
 if __name__ == "__main__":
     main() 
