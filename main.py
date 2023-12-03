@@ -3,6 +3,7 @@ import geopandas as gpd
 import time
 import pygame
 from shapely.geometry import MultiPolygon, Polygon, Point
+from tqdm import tqdm
 from AdjacencyListGraph import AdjacencyListGraph
 
 def scale_and_shift_geometry(geometry, scale_factor, shift_x, shift_y):
@@ -41,25 +42,32 @@ def draw_scaled_and_shifted_polygon(screen, polygon, color):
     pygame.draw.polygon(screen, (0, 0, 0), exterior_coords, 1)
 
 
+def load_adjacency_list_graph(zone_lookup, trip_data):
+    graph = AdjacencyListGraph()
+
+    for vertex in zone_lookup:
+        graph.add_vertex(vertex)
+
+    for i in tqdm(range(len(trip_data))):
+        graph.add_edge(trip_data['DOLocationID'][i], trip_data['PULocationID'][i], 1)
+
+    return graph
+
 def main():
+    print("Loading taxi zones...", end=' ', flush=True)
     gdf = gpd.read_file('taxi_zones.shp')
-    
-    yellow_taxi_df = pd.read_parquet('yellow_tripdata_2023-01.parquet', engine='fastparquet')
     zone_lookup_df = pd.read_csv("taxi+_zone_lookup.csv")
+    print("done!")
+    
+    print("Loading trip data...", end=' ', flush=True)
+    yellow_taxi_df = pd.read_parquet('yellow_tripdata_2023-01.parquet', engine='fastparquet')
+    print("done!")
 
-    my_graph = AdjacencyListGraph()
-    # get the current time in seconds
-    start = time.time()
-
-    for i in zone_lookup_df['LocationID']:
-        my_graph.add_vertex(i)
-
-    for i in range(len(yellow_taxi_df)):
-        my_graph.add_edge(yellow_taxi_df['DOLocationID'][i], yellow_taxi_df['PULocationID'][i], 1)
-
-    end = time.time()
-    print("Time to Create Graph:", end-start)
-
+    print("Loading adjacency list graph...")
+    my_graph = load_adjacency_list_graph(zone_lookup_df, yellow_taxi_df)
+    print("done!")
+    
+   
     # Create a pygame window
     pygame.init()
     screen = pygame.display.set_mode((1200, 1000))
