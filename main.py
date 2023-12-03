@@ -138,7 +138,8 @@ def main():
         screen.fill((0, 0, 0))
 
         if selected:
-            max_degree = list_graph.max_in(selected)
+            # Add one here to stop divide by zero errors
+            max_degree = list_graph.max_in(selected) + 1
 
         for idx, geometry in enumerate(zone_geometries):
             if idx == selected:
