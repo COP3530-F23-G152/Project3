@@ -2,6 +2,7 @@ import pandas as pd
 import geopandas as gpd
 from pandas.io.formats.format import math
 import pygame
+import sys
 from shapely import reverse
 from shapely.geometry import MultiPolygon, Polygon, Point
 from tqdm import tqdm
@@ -90,11 +91,15 @@ def create_polygons(gdf, sw, sh, sox, soy):
     polygons.extend(gdf)
     return polygons
 
-def main():
+def main(argv):
+    if len(argv) != 3:
+        print("Usage: main.py [taxi_zone_lookup] [taxi_zone_shapefile] [trip_data]")
+        exit(1)
+
     # Load the taxi zone information
     print("Loading taxi zones...", end=' ', flush=True)
-    gdf = gpd.read_file('taxi_zones.shp')
-    zone_lookup_df = pd.read_csv("taxi+_zone_lookup.csv")
+    gdf = gpd.read_file(argv[1])
+    zone_lookup_df = pd.read_csv(argv[0])
     print("done!")
 
     # Create the polygons for each zone
@@ -104,18 +109,17 @@ def main():
     
     # Load the trip data
     print("Loading trip data...", end=' ', flush=True)
-    # yellow_taxi_df = pd.read_parquet('yellow_tripdata_2023-01.parquet', engine='fastparquet')
-    yellow_taxi_df = pd.read_parquet('yellow_tripdata_2023-01.parquet', engine='fastparquet').head(100000)
+    taxi_data_df = pd.read_parquet(argv[2], engine='fastparquet')
     print("done!")
 
     # Load the adjacency matrix backed graph
     print("Loading adjacency matrix graph...")
-    matrix_graph = load_adjacency_matrix_graph(zone_lookup_df, yellow_taxi_df)
+    matrix_graph = load_adjacency_matrix_graph(zone_lookup_df, taxi_data_df)
     print("done!")
 
     # Load the adjacency list backed graph
     print("Loading adjacency list graph...")
-    list_graph = load_adjacency_list_graph(zone_lookup_df, yellow_taxi_df)
+    list_graph = load_adjacency_list_graph(zone_lookup_df, taxi_data_df)
     print("done!")
 
     # Create a pygame window
@@ -261,4 +265,4 @@ def main():
         fps_clock.tick()
 
 if __name__ == "__main__":
-    main() 
+    main(sys.argv[1:]) 
