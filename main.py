@@ -67,14 +67,14 @@ def load_adjacency_list_graph(zone_lookup, trip_data):
     return graph
 
 
-def create_polygons(gdf, sw, sh):
+def create_polygons(gdf, sw, sh, sox, soy):
     polygons = []
 
     minx, miny, maxx, maxy = gdf.total_bounds
     x_scale = sw / (maxx-minx)
     y_scale = -sh / (maxy-miny)
-    x_off = minx*x_scale
-    y_off = maxy*y_scale
+    x_off = minx*x_scale - sox
+    y_off = maxy*y_scale - soy
     trans_matrix = [x_scale, 0, 0, y_scale, -x_off, -y_off]
     gdf = gdf.affine_transform(trans_matrix)
 
@@ -88,25 +88,27 @@ def main():
     print("done!")
  
     print("Creating polygons...", end=' ', flush=True)
-    zone_geometries = create_polygons(gdf, 1000, 1000)
+    zone_geometries = create_polygons(gdf, 1000, 1000, 200, 0)
     print("done!")
     
     print("Loading trip data...", end=' ', flush=True)
-    yellow_taxi_df = pd.read_parquet('yellow_tripdata_2023-01.parquet', engine='fastparquet')
+    # yellow_taxi_df = pd.read_parquet('yellow_tripdata_2023-01.parquet', engine='fastparquet')
+    yellow_taxi_df = pd.read_parquet('yellow_tripdata_2023-01.parquet', engine='fastparquet').head(100000)
     print("done!")
 
-    # print("Loading adjacency matrix graph...")
-    # matrix_graph = load_adjacency_matrix_graph(zone_lookup_df, yellow_taxi_df)
-    # print("done!")
-    
+    print("Loading adjacency matrix graph...")
+    matrix_graph = load_adjacency_matrix_graph(zone_lookup_df, yellow_taxi_df)
+    print("done!")
+
     print("Loading adjacency list graph...")
     list_graph = load_adjacency_list_graph(zone_lookup_df, yellow_taxi_df)
     print("done!")
-  
+
     # Create a pygame window
     pygame.init()
-    screen = pygame.display.set_mode((1200, 1000))
+    screen = pygame.display.set_mode((1400, 1000))
     pygame.display.set_caption("An Interactive Map of")
+    font = pygame.font.SysFont("Helvetica", 12) 
     # Clear the screen
 
     min_color = (0, 0, 125)                        
@@ -115,6 +117,9 @@ def main():
     # Main game loop
     selected = None
     hovered = None
+    working_graph = matrix_graph
+    backend_text = font.render("Current Backend: Adjacency Matrix Graph", True, (255, 255, 255))
+    fps_clock = pygame.time.Clock()
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -134,12 +139,22 @@ def main():
                 for idx, zone_geometry in enumerate(zone_geometries):
                     if zone_geometry.contains(mouse_pos):
                         hovered = idx
+            
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_l:
+                    working_graph = list_graph
+                    backend_text = font.render("Current Backend: Adjacency List Graph", True, (255, 255, 255))
+                    print("Switched to adjacency list graph")
+                if event.key == pygame.K_m:
+                    working_graph = matrix_graph
+                    backend_text = font.render("Current Backend: Adjacency Matrix Graph", True, (255, 255, 255))
+                    print("Switched to adjacency matrix graph")
 
         screen.fill(BACKGROUND_COLOR)
 
         if selected:
             # Add one here to stop divide by zero errors
-            max_degree = list_graph.max_in(selected) + 1
+            max_degree = working_graph.max_in(selected) + 1
 
         for idx, geometry in enumerate(zone_geometries):
             if idx == selected:
@@ -148,7 +163,7 @@ def main():
                 continue
             color = min_color
             if selected:
-                weight = math.pow(list_graph.count_edges(idx, selected) / max_degree, 0.25)
+                weight = math.pow(working_graph.count_edges(idx, selected) / max_degree, 0.25)
                 color = color_blend(weight, max_color, min_color) 
 
             draw_zone_geometry(screen, geometry, color, BACKGROUND_COLOR)
@@ -158,8 +173,12 @@ def main():
         if selected:
             draw_zone_geometry(screen, zone_geometries[selected], (255, 255, 255), (0, 0, 0))
 
+        screen.blit(font.render("FPS: {:.2f} fps".format(fps_clock.get_fps()), True, (255, 255, 255)), (1400-backend_text.get_size()[0]-20, 10))
+        screen.blit(backend_text, (1400-backend_text.get_size()[0]-20, 30))
+
         # Update the display
         pygame.display.flip()
+        fps_clock.tick()
 
 if __name__ == "__main__":
     main() 
