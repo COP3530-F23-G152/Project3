@@ -39,5 +39,6 @@ Scroll down to the bottom of the TLC Trip Record Data page to find the shapes fi
 
 This program was designed to be flexible and support all data available from the new york data as well as other data in the same format.
 To use this program you must therefor explicitly pass it the data you would like to load.
+
 This can be done as follows:
 ```python3 main.py [path to lookup file] [path to shape file] [path to trip data file]```
