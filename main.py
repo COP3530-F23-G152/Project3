@@ -2,6 +2,7 @@ import pandas as pd
 import geopandas as gpd
 from pandas.io.formats.format import math
 import pygame
+from shapely import reverse
 from shapely.geometry import MultiPolygon, Polygon, Point
 from tqdm import tqdm
 from AdjacencyMatrixGraph import AdjacencyMatrixGraph
@@ -119,7 +120,7 @@ def main():
     selected = None
     hovered = None
     working_graph = matrix_graph
-    backend_text = font.render("Current Backend: Adjacency Matrix Graph", True, (255, 255, 255))
+    backend_text = "Current Backend: Adjacency Matrix Graph"
     fps_clock = pygame.time.Clock()
     while True:
         for event in pygame.event.get():
@@ -144,12 +145,10 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_l:
                     working_graph = list_graph
-                    backend_text = font.render("Current Backend: Adjacency List Graph", True, (255, 255, 255))
-                    print("Switched to adjacency list graph")
+                    backend_text = "Current Backend: Adjacency List Graph"
                 if event.key == pygame.K_m:
                     working_graph = matrix_graph
-                    backend_text = font.render("Current Backend: Adjacency Matrix Graph", True, (255, 255, 255))
-                    print("Switched to adjacency matrix graph")
+                    backend_text = "Current Backend: Adjacency Matrix Graph"
 
         screen.fill(BACKGROUND_COLOR)
 
@@ -158,15 +157,24 @@ def main():
             max_degree = working_graph.max_in(selected) + 1
             total_degree = working_graph.total_in(selected) + 1
 
+        weights = []
+        percents = []
+
+        for i in range(len(zone_lookup_df)):
+            if selected:
+                edges = working_graph.count_edges(i, selected)
+                weights.append(math.pow(edges / max_degree, 0.25))
+                percents.append((edges / total_degree) * 100)
+            else:
+                weights.append(0)
+                percents.append(0)
+
         for idx, geometry in enumerate(zone_geometries):
             if idx == selected:
                 continue
             if idx == hovered:
                 continue
-            color = min_color
-            if selected:
-                weight = math.pow(working_graph.count_edges(idx, selected) / max_degree, 0.25)
-                color = color_blend(weight, max_color, min_color) 
+            color = color_blend(weights[idx], max_color, min_color) 
 
             draw_zone_geometry(screen, geometry, color, BACKGROUND_COLOR)
 
@@ -177,15 +185,46 @@ def main():
 
         if hovered:
             mouse_pos = pygame.mouse.get_pos()
-            if selected:
-                percent = (working_graph.count_edges(hovered, selected) / total_degree) * 100
-            else:
-                percent = 0
 
-            draw_info_card(screen, font, mouse_pos, mouse_pos[0] < 700, mouse_pos[1] < 500, "{} - {}".format(zone_lookup_df['Zone'][hovered], zone_lookup_df['Borough'][hovered]), percent)
+            draw_info_card(
+                        screen,
+                        font,
+                        mouse_pos,
+                        mouse_pos[0] < 700,
+                        mouse_pos[1] < 500,
+                        ["{} - {}".format(zone_lookup_df['Zone'][hovered], zone_lookup_df['Borough'][hovered]),
+                        "Incoming Percent: {:.2f}%".format(percents[hovered])]
+                    )
 
-        screen.blit(font.render("FPS: {:.2f} fps".format(fps_clock.get_fps()), True, (255, 255, 255)), (1400-backend_text.get_size()[0]-20, 10))
-        screen.blit(backend_text, (1400-backend_text.get_size()[0]-20, 30))
+        draw_info_card(
+                    screen,
+                    font,
+                    (1380, 20),
+                    False,
+                    True,
+                    ["FPS: {:.2f} fps".format(fps_clock.get_fps()),
+                     backend_text,]
+                )
+
+        rank_data = []
+        for i in range(len(zone_lookup_df)):
+            rank_data.append((percents[i], "{} - {}".format(zone_lookup_df['Zone'][i], zone_lookup_df['Borough'][i])))
+
+        rank_data.sort(key=lambda x: x[0], reverse=True)
+        rank_texts = []
+
+        for rank in rank_data[:25]:
+            if rank[0] > 0:
+                rank_texts.append("{}: {:.2f}%".format(rank[1], rank[0]))
+
+        draw_info_card(
+                    screen,
+                    font,
+                    (20, 20),
+                    True,
+                    True,
+                    rank_texts
+                )
 
         # Update the display
         pygame.display.flip()
