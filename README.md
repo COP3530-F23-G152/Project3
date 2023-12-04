@@ -42,3 +42,14 @@ To use this program you must therefor explicitly pass it the data you would like
 
 This can be done as follows:
 ```python3 main.py [path to lookup file] [path to shape file] [path to trip data file]```
+
+### Keybinds
+
+#### l
+
+This will switch the app to using an adjacency list backed graph.
+
+#### m
+
+
+This will switch the app to using an adjacency matrix backed graph.
