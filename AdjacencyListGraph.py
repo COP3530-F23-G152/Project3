@@ -27,3 +27,11 @@ class AdjacencyListGraph:
             return 0
         else:
             return max(ret)
+
+    def total_in(self, vertex):
+        ret = [v[1] for row in self.adjacency_list for v in row if v[0] == vertex]
+        if len(ret) == 0:
+            return 0
+        else:
+            return sum(ret)
+

@@ -12,3 +12,6 @@ class AdjacencyMatrixGraph:
 
     def max_in(self, vertex):
         return max(self.adjacency_list[src][vertex] for src in range(len(self.adjacency_list)))
+
+    def total_in(self, vertex):
+        return sum(self.adjacency_list[src][vertex] for src in range(len(self.adjacency_list)))

@@ -6,6 +6,7 @@ from shapely.geometry import MultiPolygon, Polygon, Point
 from tqdm import tqdm
 from AdjacencyMatrixGraph import AdjacencyMatrixGraph
 from AdjacencyListGraph import AdjacencyListGraph
+from InfoCard import draw_info_card
 
 BACKGROUND_COLOR = (100, 100, 100)
 
@@ -155,6 +156,7 @@ def main():
         if selected:
             # Add one here to stop divide by zero errors
             max_degree = working_graph.max_in(selected) + 1
+            total_degree = working_graph.total_in(selected) + 1
 
         for idx, geometry in enumerate(zone_geometries):
             if idx == selected:
@@ -172,6 +174,15 @@ def main():
             draw_zone_geometry(screen, zone_geometries[hovered], min_color, (255, 255, 255))
         if selected:
             draw_zone_geometry(screen, zone_geometries[selected], (255, 255, 255), (0, 0, 0))
+
+        if hovered:
+            mouse_pos = pygame.mouse.get_pos()
+            if selected:
+                percent = (working_graph.count_edges(hovered, selected) / total_degree) * 100
+            else:
+                percent = 0
+
+            draw_info_card(screen, font, mouse_pos, mouse_pos[0] < 700, mouse_pos[1] < 500, "{} - {}".format(zone_lookup_df['Zone'][hovered], zone_lookup_df['Borough'][hovered]), percent)
 
         screen.blit(font.render("FPS: {:.2f} fps".format(fps_clock.get_fps()), True, (255, 255, 255)), (1400-backend_text.get_size()[0]-20, 10))
         screen.blit(backend_text, (1400-backend_text.get_size()[0]-20, 30))
