@@ -1,0 +1,6 @@
+*.shp
+*.shx
+*.parquet
+.ipynb_checkpoints
+.cache
+__pycache__
