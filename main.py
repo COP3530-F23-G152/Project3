@@ -211,8 +211,8 @@ def main():
                         screen,
                         font,
                         mouse_pos,
-                        mouse_pos[0] < 700,
-                        mouse_pos[1] < 500,
+                        mouse_pos[0] > 700,
+                        mouse_pos[1] > 500,
                         ["{} - {}".format(zone_lookup_df['Zone'][hovered], zone_lookup_df['Borough'][hovered]),
                         "Incoming Percent: {:.2f}%".format(percents[hovered])]
                     )
@@ -222,8 +222,8 @@ def main():
                     screen,
                     font,
                     (1380, 20),
-                    False,
                     True,
+                    False,
                     ["FPS: {:.2f} fps".format(fps_clock.get_fps()),
                      backend_text,]
                 )
@@ -249,8 +249,8 @@ def main():
                     screen,
                     font,
                     (20, 20),
-                    True,
-                    True,
+                    False,
+                    False,
                     rank_texts
                 )
 

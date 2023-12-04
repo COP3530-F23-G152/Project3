@@ -14,7 +14,7 @@ def draw_info_card(screen, font, pos, right, bottom, text):
     height = sum(surf.get_size()[1] for surf in text_surfaces) + 20 + (len(text)-1)*10
 
     # Compute the position of the card
-    offest_pos = (pos[0] if right else pos[0] - width, pos[1] if bottom else pos[1] - height)
+    offest_pos = (pos[0] - width if right else pos[0], pos[1] - height if bottom else pos[1])
 
     # Create a new surface for drawing the card on
     surf = pygame.Surface((width, height), pygame.SRCALPHA)
