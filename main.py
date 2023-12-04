@@ -75,7 +75,6 @@ def load_adjacency_list_graph(zone_lookup, trip_data):
 
     return graph
 
-
 # Creates the polygons from a geopandas dataframe (mostly just scales and shifts from GPS coords to screen coords)
 def create_polygons(gdf, sw, sh, sox, soy):
     polygons = []
@@ -198,6 +197,7 @@ def main(argv):
                 continue
             if idx == hovered:
                 continue
+
             color = color_blend(weights[idx], max_color, min_color) 
             draw_zone_geometry(screen, geometry, color, BACKGROUND_COLOR)
 

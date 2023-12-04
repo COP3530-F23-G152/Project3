@@ -38,4 +38,3 @@ class AdjacencyListGraph:
             return 0
         else:
             return sum(ret)
-
